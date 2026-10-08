@@ -13,7 +13,6 @@ type ContactService struct {
 func NewContactService(
 	repository *repository.ContactRepository,
 ) *ContactService {
-
 	return &ContactService {
 		repository: repository,
 	}
@@ -49,6 +48,20 @@ func (s *ContactService) GetContact(id int) (model.Contact, error)  {
 		return model.Contact{}, errors.New("Contact not found")
 	}
 	return *contact, nil
+}
+
+func(s *ContactService) UpdateContact(id int, name string, phone string) (model.Contact, error) {
+	updatedContact := model.Contact{
+		ID:    id,
+		Name:  name,
+		Phone: phone,
+	}
+	updated := s.repository.UpdateById(id, updatedContact)
+
+	if !updated {
+		return model.Contact{}, errors.New("Contact not found")
+	}
+	return updatedContact, nil
 }
 
 func (s *ContactService) DeleteContact(id int) error {

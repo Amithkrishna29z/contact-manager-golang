@@ -1,7 +1,7 @@
 # Contact Manager
 
 A small command-line contact manager in Go. It stores contacts in memory and exposes
-add / list / find / delete through an interactive menu.
+add / list / find / update / delete through an interactive menu.
 
 The program is deliberately simple, but it is layered the way a larger Go service would
 be. This README explains the concepts the code demonstrates, since that is the point of
@@ -21,8 +21,9 @@ the standard library.
 1. Add Contact
 2. List Contacts
 3. Find Contact
-4. Delete Contact
-5. Exit
+4. Update Contact
+5. Delete Contact
+6. Exit
 Enter choice:
 ```
 
@@ -112,6 +113,16 @@ read the new ID off the return value rather than off their own variable.
 "here is the thing, and here is whether it was found", rather than returning nil and
 making the caller test for it.
 
+**Whole-record replacement.** `UpdateById` finds the matching index and assigns over it:
+
+```go
+r.contacts[i] = updatedContact
+```
+
+It does not merge fields, and it does not preserve the stored `ID` — whatever the caller
+passed in becomes the record. Keeping the ID correct is therefore the service layer's job,
+not the repository's. Like `Delete`, it reports success with a plain `bool`.
+
 **Removing from a slice.** `Delete` uses the standard idiom:
 
 ```go
@@ -152,7 +163,7 @@ callers from the repository's internal slice.
 ### `main` — the CLI
 
 An infinite `for` loop prints the menu, reads a line, and dispatches on a `switch`.
-Returning from `main` on choice 5 exits the program.
+Returning from `main` on choice 6 exits the program.
 
 **Reading input.** One `bufio.Reader` is created over `os.Stdin` and passed to every
 handler. Each read is `reader.ReadString` on a newline delimiter followed by
@@ -160,7 +171,7 @@ handler. Each read is `reader.ReadString` on a newline delimiter followed by
 required, not optional. Numeric input then goes through `strconv.Atoi`, whose error is how
 invalid input is detected.
 
-**Handler shape.** All four handlers follow one pattern: prompt, read, trim, convert if
+**Handler shape.** All five handlers follow one pattern: prompt, read, trim, convert if
 numeric, call the service, print the error or the result. The CLI never touches the
 repository and never validates anything itself; it only collects strings and displays what
 comes back.
@@ -197,7 +208,10 @@ which would defeat the purpose.
 These are real, and worth knowing before extending the code.
 
 - **No persistence.** Contacts exist only in memory; `ContactStore` is unimplemented.
-- **No update operation.** You can add, read, and delete, but not edit a contact.
+- **`UpdateContact` skips validation.** `AddContact` rejects an empty name or phone;
+  `UpdateContact` does not, so an update can blank out fields that add would have refused.
+- **Updates are whole-record only.** There is no way to change just the phone and keep the
+  name — the CLI prompts for both and overwrites both, so pressing enter clears a field.
 - **`GetByID` returns a pointer into the backing array.** A later `Add` can reallocate the
   slice and a later `Delete` shifts elements, either of which leaves such a pointer
   referring to the wrong contact. It is safe as currently used, because `GetContact`
@@ -216,6 +230,8 @@ These are real, and worth knowing before extending the code.
 
 1. Implement `ContactStore` with a JSON file. You will have to decide what to do about the
    asymmetric `Save`/`Load` signatures — working that out is the point of the exercise.
-2. Add `UpdateContact` end to end, through all four layers.
+2. Make `UpdateContact` validate its input the way `AddContact` does, then decide whether
+   an empty field should mean "reject" or "leave unchanged" — the second needs the current
+   contact read back first.
 3. Change `GetByID` to return `(model.Contact, bool)` by value and watch the pointer
    aliasing problem disappear.
