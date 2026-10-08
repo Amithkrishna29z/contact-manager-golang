@@ -1,0 +1,8 @@
+# Build output
+contact-manager
+contact-manager.exe
+*.exe
+
+# Test / coverage
+*.test
+coverage.out
